@@ -55,8 +55,10 @@ export async function verifySuperAdminPassword(
     };
   }
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const supabaseUrl =
+    process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://kwhyztqjoweegfzomyon.supabase.co';
+  const supabaseAnonKey =
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_rJ84YXDuauyms-RpkwplPw_gHI98inJ';
 
   if (!supabaseUrl || !supabaseAnonKey) {
     return { valid: false, error: 'Error de configuración del servidor Auth.' };

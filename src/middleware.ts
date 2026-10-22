@@ -6,8 +6,10 @@ export async function middleware(request: NextRequest) {
     request,
   });
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const supabaseUrl =
+    process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://kwhyztqjoweegfzomyon.supabase.co';
+  const supabaseKey =
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_rJ84YXDuauyms-RpkwplPw_gHI98inJ';
 
   if (!supabaseUrl || !supabaseKey) {
     return supabaseResponse;
