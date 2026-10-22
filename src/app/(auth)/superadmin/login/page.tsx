@@ -35,6 +35,17 @@ export default function SuperAdminLoginPage() {
     setLoading(true);
 
     try {
+      // 1. Verificar bloqueo server-side por intentos fallidos
+      const checkRes = await fetch('/api/superadmin/auth-audit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accion: 'check_lock', email: email.trim() }),
+      });
+      if (checkRes.status === 429) {
+        const lockData = await checkRes.json();
+        throw new Error(lockData.error || 'Demasiados intentos fallidos.');
+      }
+
       const supabase = createClient();
       const { data, error: authError } = await supabase.auth.signInWithPassword({
         email: email.trim(),
@@ -45,19 +56,20 @@ export default function SuperAdminLoginPage() {
         const nuevosIntentos = intentosFallidos + 1;
         setIntentosFallidos(nuevosIntentos);
 
-        if (nuevosIntentos >= 5) {
-          const tiempoBloqueo = Date.now() + 60 * 1000; // 1 minuto de bloqueo
+        // Registrar intento fallido en servidor
+        const failRes = await fetch('/api/superadmin/auth-audit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ accion: 'failed', email: email.trim() }),
+        });
+        const failData = await failRes.json().catch(() => ({}));
+
+        if (nuevosIntentos >= 5 || failData.locked) {
+          const tiempoBloqueo = Date.now() + 90 * 1000;
           setBloqueadoHasta(tiempoBloqueo);
           localStorage.setItem('sa_lock_until', tiempoBloqueo.toString());
-          throw new Error('Demasiados intentos fallidos. Acceso bloqueado por 60 segundos por seguridad.');
+          throw new Error('Demasiados intentos fallidos. Acceso bloqueado por 90 segundos por seguridad.');
         }
-
-        // Registrar intento fallido
-        await supabase.from('auditoria_accesos').insert({
-          email: email.trim(),
-          evento: 'superadmin_login_failed',
-          metadata: { intentos: nuevosIntentos },
-        });
 
         throw new Error('Credenciales incorrectas o acceso no autorizado.');
       }
@@ -71,18 +83,26 @@ export default function SuperAdminLoginPage() {
 
       if (profileError || !profile || profile.role !== 'superadmin' || !profile.activo) {
         await supabase.auth.signOut();
+        await fetch('/api/superadmin/auth-audit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ accion: 'failed', email: email.trim() }),
+        });
         throw new Error('Acceso restringido. Esta cuenta no tiene permisos de Súper Administrador.');
       }
 
-      // Éxito: registrar auditoría y limpiar intentos
+      // Éxito: registrar auditoría en servidor y limpiar intentos
       setIntentosFallidos(0);
       localStorage.removeItem('sa_lock_until');
 
-      await supabase.from('auditoria_accesos').insert({
-        usuario_id: data.user.id,
-        email: data.user.email,
-        evento: 'superadmin_login_success',
-        metadata: { timestamp: new Date().toISOString() },
+      await fetch('/api/superadmin/auth-audit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          accion: 'success',
+          email: data.user.email,
+          usuario_id: data.user.id,
+        }),
       });
 
       router.push('/superadmin');

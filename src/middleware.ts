@@ -13,26 +13,22 @@ export async function middleware(request: NextRequest) {
     return supabaseResponse;
   }
 
-  const supabase = createServerClient(
-    supabaseUrl,
-    supabaseKey,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-          supabaseResponse = NextResponse.next({
-            request,
-          });
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
-          );
-        },
+  const supabase = createServerClient(supabaseUrl, supabaseKey, {
+    cookies: {
+      getAll() {
+        return request.cookies.getAll();
       },
-    }
-  );
+      setAll(cookiesToSet) {
+        cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+        supabaseResponse = NextResponse.next({
+          request,
+        });
+        cookiesToSet.forEach(({ name, value, options }) =>
+          supabaseResponse.cookies.set(name, value, options)
+        );
+      },
+    },
+  });
 
   const {
     data: { user },
@@ -40,7 +36,7 @@ export async function middleware(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname;
 
-  // Rutas de SuperAdmin
+  // 1. Rutas de SuperAdmin
   if (pathname.startsWith('/superadmin') && pathname !== '/superadmin/login') {
     if (!user) {
       const url = request.nextUrl.clone();
@@ -48,7 +44,6 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(url);
     }
 
-    // Verificar rol superadmin
     const { data: profile } = await supabase
       .from('usuarios')
       .select('role, activo')
@@ -62,7 +57,7 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Rutas del panel de negocio
+  // 2. Rutas del panel de negocio (/admin)
   if (pathname.startsWith('/admin')) {
     if (!user) {
       const url = request.nextUrl.clone();
@@ -71,28 +66,90 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(url);
     }
 
-    // Consultar perfil
     const { data: profile } = await supabase
       .from('usuarios')
       .select('role, must_change_password, activo, negocio_id')
       .eq('id', user.id)
       .single();
 
-    if (!profile || !profile.activo || (profile.role !== 'admin' && profile.role !== 'vendedor')) {
+    if (!profile || !profile.activo) {
       const url = request.nextUrl.clone();
       url.pathname = '/login';
       return NextResponse.redirect(url);
     }
 
-    // Forzar cambio de contraseña si must_change_password está activo
     if (profile.must_change_password) {
       const url = request.nextUrl.clone();
       url.pathname = '/cambiar-clave';
       return NextResponse.redirect(url);
     }
+
+    // Si es cadete, redirigir exclusivamente a su vista /cadete
+    if (profile.role === 'cadete') {
+      const url = request.nextUrl.clone();
+      url.pathname = '/cadete';
+      return NextResponse.redirect(url);
+    }
+
+    if (profile.role !== 'admin' && profile.role !== 'vendedor') {
+      const url = request.nextUrl.clone();
+      url.pathname = '/login';
+      return NextResponse.redirect(url);
+    }
+
+    // Rutas exclusivas de administrador (bloqueadas para vendedor)
+    const adminOnlyPaths = [
+      '/admin/reportes',
+      '/admin/caja',
+      '/admin/cadeteria',
+      '/admin/empleados',
+      '/admin/configuracion',
+    ];
+    if (
+      profile.role === 'vendedor' &&
+      adminOnlyPaths.some((p) => pathname.startsWith(p))
+    ) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/admin';
+      return NextResponse.redirect(url);
+    }
   }
 
-  // Si está en /cambiar-clave pero no necesita cambiar contraseña o no está logueado
+  // 3. Rutas exclusivas de la App del Cadete (/cadete)
+  if (pathname.startsWith('/cadete')) {
+    if (!user) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/login';
+      url.searchParams.set('redirect', pathname);
+      return NextResponse.redirect(url);
+    }
+
+    const { data: profile } = await supabase
+      .from('usuarios')
+      .select('role, must_change_password, activo')
+      .eq('id', user.id)
+      .single();
+
+    if (!profile || !profile.activo) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/login';
+      return NextResponse.redirect(url);
+    }
+
+    if (profile.must_change_password) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/cambiar-clave';
+      return NextResponse.redirect(url);
+    }
+
+    if (profile.role !== 'cadete' && profile.role !== 'admin' && profile.role !== 'superadmin') {
+      const url = request.nextUrl.clone();
+      url.pathname = '/admin';
+      return NextResponse.redirect(url);
+    }
+  }
+
+  // 4. Pantalla de cambio obligatorio de contraseña (/cambiar-clave)
   if (pathname === '/cambiar-clave') {
     if (!user) {
       const url = request.nextUrl.clone();
@@ -108,7 +165,9 @@ export async function middleware(request: NextRequest) {
 
     if (!profile?.must_change_password) {
       const url = request.nextUrl.clone();
-      url.pathname = profile?.role === 'superadmin' ? '/superadmin' : '/admin';
+      if (profile?.role === 'superadmin') url.pathname = '/superadmin';
+      else if (profile?.role === 'cadete') url.pathname = '/cadete';
+      else url.pathname = '/admin';
       return NextResponse.redirect(url);
     }
   }
@@ -118,6 +177,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|manifest.json|sw.js|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };

@@ -2,13 +2,22 @@
 
 import { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
-import { UtensilsCrossed, Lock, Mail, ArrowRight, AlertCircle, Loader2 } from 'lucide-react';
+import {
+  UtensilsCrossed,
+  Lock,
+  Mail,
+  ArrowRight,
+  AlertCircle,
+  Loader2,
+  ArrowLeft,
+} from 'lucide-react';
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirect = searchParams.get('redirect') || '/admin';
+  const redirect = searchParams.get('redirect');
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -27,15 +36,10 @@ function LoginForm() {
         password,
       });
 
-      if (authError) {
+      if (authError || !data.user) {
         throw new Error('Credenciales inválidas. Verificá tu correo y contraseña.');
       }
 
-      if (!data.user) {
-        throw new Error('No se pudo iniciar sesión.');
-      }
-
-      // Obtener datos del perfil
       const { data: profile, error: profileError } = await supabase
         .from('usuarios')
         .select('role, must_change_password, activo')
@@ -51,17 +55,17 @@ function LoginForm() {
         throw new Error('Tu cuenta está desactivada. Contactá al administrador.');
       }
 
-      // Si debe cambiar la contraseña, redirigir
       if (profile.must_change_password) {
         router.push('/cambiar-clave');
         return;
       }
 
-      // Redirigir según el rol
       if (profile.role === 'superadmin') {
         router.push('/superadmin');
+      } else if (profile.role === 'cadete') {
+        router.push('/cadete');
       } else {
-        router.push(redirect);
+        router.push(redirect || '/admin');
       }
     } catch (err: unknown) {
       if (err instanceof Error) {
@@ -75,10 +79,10 @@ function LoginForm() {
   };
 
   return (
-    <div className="bg-slate-900/80 backdrop-blur-md py-8 px-6 shadow-2xl border border-slate-800 rounded-3xl sm:px-10">
+    <div className="bg-[#11151f]/90 backdrop-blur-xl py-8 px-6 shadow-[0_20px_50px_rgba(0,0,0,0.6)] border border-white/10 rounded-3xl sm:px-10">
       {error && (
-        <div className="mb-6 rounded-xl bg-rose-950/50 border border-rose-800/80 p-4 text-sm text-rose-300 flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 text-rose-400 flex-shrink-0 mt-0.5" />
+        <div className="mb-6 rounded-2xl bg-rose-500/10 border border-rose-500/25 p-4 text-xs text-rose-200 flex items-start gap-3">
+          <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
           <span>{error}</span>
         </div>
       )}
@@ -86,19 +90,19 @@ function LoginForm() {
       <form onSubmit={handleLogin} className="space-y-5">
         <div>
           <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2">
-            Correo Electrónico
+            Correo electrónico
           </label>
-          <div className="relative rounded-xl shadow-sm">
-            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-              <Mail className="h-5 w-5" />
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+              <Mail className="h-4 w-4" />
             </div>
             <input
               type="email"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="ejemplo@negocio.com"
-              className="block w-full pl-11 pr-4 py-3 bg-slate-950/60 border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-rose-500 text-sm transition-all"
+              placeholder="usuario@negocio.com"
+              className="block w-full pl-10 pr-4 py-3 bg-[#090b10] border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-rose-500/50 focus:border-rose-500 text-sm transition-all"
             />
           </div>
         </div>
@@ -107,9 +111,9 @@ function LoginForm() {
           <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2">
             Contraseña
           </label>
-          <div className="relative rounded-xl shadow-sm">
-            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-              <Lock className="h-5 w-5" />
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+              <Lock className="h-4 w-4" />
             </div>
             <input
               type="password"
@@ -117,7 +121,7 @@ function LoginForm() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
-              className="block w-full pl-11 pr-4 py-3 bg-slate-950/60 border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-rose-500 text-sm transition-all"
+              className="block w-full pl-10 pr-4 py-3 bg-[#090b10] border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-rose-500/50 focus:border-rose-500 text-sm transition-all"
             />
           </div>
         </div>
@@ -125,25 +129,28 @@ function LoginForm() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full flex justify-center items-center gap-2 py-3.5 px-4 border border-transparent rounded-xl shadow-md text-sm font-semibold text-white bg-rose-600 hover:bg-rose-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-rose-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+          className="w-full flex justify-center items-center gap-2 py-3.5 px-4 rounded-xl shadow-lg shadow-rose-600/20 text-sm font-semibold text-white bg-rose-600 hover:bg-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-500/40 transition-all disabled:opacity-50 cursor-pointer"
         >
           {loading ? (
             <>
-              <Loader2 className="w-5 h-5 animate-spin" />
-              Verificando...
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span>Verificando acceso...</span>
             </>
           ) : (
             <>
-              Ingresar al Panel
+              <span>Ingresar al sistema</span>
               <ArrowRight className="w-4 h-4" />
             </>
           )}
         </button>
       </form>
 
-      <div className="mt-6 text-center">
-        <p className="text-xs text-slate-500">
-          ¿Olvidaste tu contraseña? Solicitá un restablecimiento a tu administrador.
+      <div className="mt-6 pt-5 border-t border-white/[0.07] text-center space-y-2">
+        <p className="text-xs text-slate-400">
+          Acceso unificado para Administradores, Vendedores y Cadetes.
+        </p>
+        <p className="text-[11px] text-slate-500">
+          ¿Olvidaste tu clave? Solicitá un restablecimiento al administrador de tu local.
         </p>
       </div>
     </div>
@@ -152,21 +159,33 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col justify-center py-12 sm:px-6 lg:px-8 text-slate-100 px-4">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-rose-600 text-white shadow-lg shadow-rose-600/30 mb-4">
-          <UtensilsCrossed className="w-8 h-8" />
+    <div className="min-h-screen bg-[#090b10] flex flex-col justify-center py-12 sm:px-6 lg:px-8 text-slate-100 px-4 relative overflow-hidden">
+      <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-[550px] h-[300px] bg-rose-600/10 blur-[120px] pointer-events-none rounded-full" />
+
+      <div className="sm:mx-auto sm:w-full sm:max-w-md text-center relative z-10">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-white mb-6 transition-colors"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          <span>Volver al inicio</span>
+        </Link>
+
+        <div className="w-14 h-14 rounded-2xl bg-rose-600 text-white shadow-xl shadow-rose-600/30 mx-auto mb-4 flex items-center justify-center">
+          <UtensilsCrossed className="w-7 h-7" />
         </div>
-        <h2 className="text-3xl font-extrabold tracking-tight text-white">
+        <h1 className="font-heading text-3xl font-extrabold tracking-tight text-white">
           Pedidos by <span className="text-rose-500 font-mono">ROLΦ</span>
-        </h2>
-        <p className="mt-2 text-sm text-slate-400">
-          Panel de gestión para administradores y vendedores
+        </h1>
+        <p className="mt-1.5 text-xs sm:text-sm text-slate-400">
+          Plataforma de gestión gastronómica, ventas y cadetería
         </p>
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <Suspense fallback={<div className="text-center text-slate-400 text-xs">Cargando formulario...</div>}>
+      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md relative z-10">
+        <Suspense
+          fallback={<div className="text-center text-slate-400 text-xs">Cargando acceso...</div>}
+        >
           <LoginForm />
         </Suspense>
       </div>

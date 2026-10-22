@@ -1,0 +1,19 @@
+{
+  "name": "Pedidos by ROLΦ — Gestión y Entregas",
+  "short_name": "Pedidos ROLΦ",
+  "description": "Sistema multinegocio de pedidos por menú digital, despacho y app del cadete con GPS.",
+  "start_url": "/cadete",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#09090b",
+  "theme_color": "#f59e0b",
+  "lang": "es-AR",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ]
+}

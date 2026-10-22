@@ -126,10 +126,20 @@ async function runSeed() {
     nombre: 'ROLΦ Pizzas & Burgers',
     slug: 'rolfo-pizzas-burgers',
     logo_url: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&auto=format&fit=crop&q=80',
-    color_primario: '#E11D48', // Rose 600
-    color_secundario: '#0F172A', // Slate 900
+    banner_url: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=1200&auto=format&fit=crop&q=80',
+    slogan: 'Masa madre al horno de barro & Smash Burgers artesanales',
+    color_primario: '#F59E0B', // Ámbar cálido gastronómico
+    color_secundario: '#09090B', // Carbón profundo
+    tipografia_id: 'bold',
     telefono: '11 5555-1234',
     whatsapp_numero: '5491155551234', // Número de WhatsApp de prueba
+    direccion_local: 'Av. Santa Fe 3200, Palermo, CABA',
+    abierto_manual: true,
+    modo_apertura: 'manual',
+    tiempo_preparacion_min: 30,
+    momento_aviso_cadeteria: 'minutos_antes',
+    minutos_antes_aviso: 10,
+    avisar_cliente_en_camino: true,
     horarios: {
       dias: 'Martes a Domingo',
       apertura: '19:30',
@@ -490,7 +500,98 @@ async function runSeed() {
     }
   }
 
-  console.log('🎉 Seed de Pizzas & Hamburguesas completado con éxito.');
+  // 7. VENDEDOR Y CADETE PROPIO + EMPRESA DE CADETERÍA EXTERNA
+  console.log('🛵 Creando Vendedor, Cadete Propio (App + GPS) y Empresa de Cadetería Externa...');
+  const vendedorEmail = 'vendedor@rolfopizzas.com';
+  const vendedorPass = 'Vendedor@2026';
+  const existingVendedor = userList?.users?.find((u) => u.email === vendedorEmail);
+  let vendedorId = existingVendedor?.id;
+  if (!existingVendedor) {
+    const { data: vUser } = await supabase.auth.admin.createUser({
+      email: vendedorEmail,
+      password: vendedorPass,
+      email_confirm: true,
+      user_metadata: { role: 'vendedor', nombre: 'Mostrador / Vendedor' },
+    });
+    if (vUser?.user) vendedorId = vUser.user.id;
+  }
+  if (vendedorId) {
+    await supabase.from('usuarios').upsert({
+      id: vendedorId,
+      email: vendedorEmail,
+      nombre: 'Sofía (Vendedora Mostrador)',
+      role: 'vendedor',
+      negocio_id: negocioId,
+      must_change_password: true,
+      activo: true,
+    });
+  }
+
+  const cadeteEmail = 'cadete@rolfopizzas.com';
+  const cadetePass = 'Cadete@2026';
+  const existingCadeteUser = userList?.users?.find((u) => u.email === cadeteEmail);
+  let cadeteUserId = existingCadeteUser?.id;
+  if (!existingCadeteUser) {
+    const { data: cUser } = await supabase.auth.admin.createUser({
+      email: cadeteEmail,
+      password: cadetePass,
+      email_confirm: true,
+      user_metadata: { role: 'cadete', nombre: 'Lucas Gómez (Cadete)' },
+    });
+    if (cUser?.user) cadeteUserId = cUser.user.id;
+  }
+  if (cadeteUserId) {
+    await supabase.from('usuarios').upsert({
+      id: cadeteUserId,
+      email: cadeteEmail,
+      nombre: 'Lucas Gómez (Cadete)',
+      telefono: '5491144556677',
+      role: 'cadete',
+      negocio_id: negocioId,
+      must_change_password: true,
+      activo: true,
+    });
+
+    const { data: existingCadPropio } = await supabase
+      .from('cadetes')
+      .select('id')
+      .eq('negocio_id', negocioId)
+      .eq('usuario_id', cadeteUserId)
+      .maybeSingle();
+
+    if (!existingCadPropio) {
+      await supabase.from('cadetes').insert({
+        negocio_id: negocioId,
+        tipo: 'propio',
+        usuario_id: cadeteUserId,
+        nombre: 'Lucas Gómez (Moto Propia)',
+        telefono_whatsapp: '5491144556677',
+        es_predeterminado: true,
+        activo: true,
+      });
+    }
+  }
+
+  const { data: existingCadExterna } = await supabase
+    .from('cadetes')
+    .select('id')
+    .eq('negocio_id', negocioId)
+    .eq('tipo', 'externa')
+    .maybeSingle();
+
+  if (!existingCadExterna) {
+    await supabase.from('cadetes').insert({
+      negocio_id: negocioId,
+      tipo: 'externa',
+      usuario_id: null,
+      nombre: 'MotoExpress Palermo (Externa)',
+      telefono_whatsapp: '5491133445566',
+      es_predeterminado: false,
+      activo: true,
+    });
+  }
+
+  console.log('🎉 Seed v2 de Pizzas & Hamburguesas completado con éxito.');
   console.log('----------------------------------------------------');
   console.log('📌 NEGOCIO LISTO PARA PROBAR:');
   console.log('   Nombre:      ROLΦ Pizzas & Burgers');
@@ -499,6 +600,12 @@ async function runSeed() {
   console.log('📌 LOGIN ADMINISTRADOR DEL NEGOCIO:');
   console.log(`   Email:       ${adminDemoEmail}`);
   console.log(`   Contraseña:  ${adminDemoPass} (obligado a cambiarla en primer login)`);
+  console.log('📌 LOGIN VENDEDOR:');
+  console.log(`   Email:       ${vendedorEmail}`);
+  console.log(`   Contraseña:  ${vendedorPass}`);
+  console.log('📌 LOGIN CADETE (VISTA EXCLUSIVA /cadete CON GPS):');
+  console.log(`   Email:       ${cadeteEmail}`);
+  console.log(`   Contraseña:  ${cadetePass}`);
   console.log('📌 LOGIN SÚPER ADMINISTRADOR (OCULTO):');
   console.log(`   Email:       ${superadminEmail}`);
   console.log(`   Contraseña:  ${superadminPassword}`);

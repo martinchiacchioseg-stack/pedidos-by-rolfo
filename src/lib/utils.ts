@@ -1,6 +1,8 @@
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
+export const ARGENTINA_TZ = 'America/Argentina/Buenos_Aires';
+
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
@@ -10,27 +12,63 @@ export function formatCurrency(amount: number): string {
     style: 'currency',
     currency: 'ARS',
     maximumFractionDigits: 0,
-  }).format(amount);
+  }).format(amount || 0);
 }
 
 export function formatDate(dateString: string): string {
+  if (!dateString) return '-';
   const date = new Date(dateString);
   return new Intl.DateTimeFormat('es-AR', {
+    timeZone: ARGENTINA_TZ,
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
+    hour12: false,
   }).format(date);
 }
 
 export function formatShortDate(dateString: string): string {
+  if (!dateString) return '-';
   const date = new Date(dateString);
   return new Intl.DateTimeFormat('es-AR', {
+    timeZone: ARGENTINA_TZ,
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
   }).format(date);
+}
+
+export function formatTimeAR(dateString: string): string {
+  if (!dateString) return '-';
+  const date = new Date(dateString);
+  return new Intl.DateTimeFormat('es-AR', {
+    timeZone: ARGENTINA_TZ,
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(date);
+}
+
+export function getTodayDateStringAR(): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: ARGENTINA_TZ,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date());
+
+  const year = parts.find((p) => p.type === 'year')?.value;
+  const month = parts.find((p) => p.type === 'month')?.value;
+  const day = parts.find((p) => p.type === 'day')?.value;
+  return `${year}-${month}-${day}`;
+}
+
+export function calcularHoraEstimadaAR(minutosExtra = 30, baseDate?: string): string {
+  const d = baseDate ? new Date(baseDate) : new Date();
+  d.setMinutes(d.getMinutes() + minutosExtra);
+  return formatTimeAR(d.toISOString()) + ' hs';
 }
 
 export function calcularDiasRestantes(fechaVencimiento: string): number {
@@ -51,20 +89,32 @@ export function slugify(text: string): string {
     .toString()
     .toLowerCase()
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '') // Quitar tildes
+    .replace(/[\u0300-\u036f]/g, '')
     .trim()
-    .replace(/\s+/g, '-') // Espacios a guiones
-    .replace(/[^\w-]+/g, '') // Quitar caracteres no alfanuméricos
-    .replace(/--+/g, '-'); // Reemplazar múltiples guiones por uno
+    .replace(/\s+/g, '-')
+    .replace(/[^\w-]+/g, '')
+    .replace(/--+/g, '-');
 }
 
 export function limpiarNumeroWhatsApp(phone: string): string {
-  // Remueve espacios, guiones, paréntesis y signos +
-  return phone.replace(/[^0-9]/g, '');
+  return (phone || '').replace(/[^0-9]/g, '');
 }
 
 export function validarNumeroWhatsApp(phone: string): boolean {
   const clean = limpiarNumeroWhatsApp(phone);
-  // Al menos 10 dígitos (código de país + código de área + número)
   return clean.length >= 10 && clean.length <= 15;
+}
+
+export function generarLinkGoogleMaps(direccion: string): string {
+  if (!direccion) return '';
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(direccion.trim())}`;
+}
+
+export function generarLinkWaze(direccion: string): string {
+  if (!direccion) return '';
+  return `https://waze.com/ul?q=${encodeURIComponent(direccion.trim())}&navigate=yes`;
+}
+
+export function generarLinkGoogleMapsCoords(lat: number, lng: number): string {
+  return `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
 }

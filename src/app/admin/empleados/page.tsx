@@ -199,6 +199,11 @@ export default function EmpleadosPage() {
                         <Shield className="w-3.5 h-3.5 text-rose-400" />
                         Administrador
                       </span>
+                    ) : emp.role === 'cadete' ? (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-950/80 text-emerald-300 border border-emerald-800/80">
+                        <ShoppingBag className="w-3.5 h-3.5 text-emerald-400" />
+                        Cadete (App Entregas)
+                      </span>
                     ) : (
                       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-950/80 text-blue-300 border border-blue-800/80">
                         <ShoppingBag className="w-3.5 h-3.5 text-blue-400" />

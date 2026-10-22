@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { calcularDiasRestantes, getEstadoVencimiento } from '@/lib/utils';
+import { calcularEstadoApertura } from '@/lib/horarios';
 
 export async function GET(
   _req: NextRequest,
@@ -9,7 +10,6 @@ export async function GET(
   const { slug } = await params;
   const adminSupabase = createAdminClient();
 
-  // 1. Obtener negocio por slug
   const { data: negocio, error: negError } = await adminSupabase
     .from('negocios')
     .select('*')
@@ -20,29 +20,18 @@ export async function GET(
     return NextResponse.json({ error: 'Negocio no encontrado' }, { status: 404 });
   }
 
-  // 2. Verificar vencimiento y estado
   const diasRestantes = calcularDiasRestantes(negocio.fecha_vencimiento);
   const estadoVencimiento = getEstadoVencimiento(diasRestantes);
   const estaVencido = !negocio.activo || estadoVencimiento === 'vencido';
 
-  if (estaVencido) {
-    return NextResponse.json({
-      servicio_no_disponible: true,
-      negocio: {
-        nombre: negocio.nombre,
-        logo_url: negocio.logo_url,
-      },
-    });
-  }
+  const estadoApertura = calcularEstadoApertura(negocio);
 
-  // 3. Obtener categorías del negocio
   const { data: categorias } = await adminSupabase
     .from('categorias')
     .select('*')
     .eq('negocio_id', negocio.id)
     .order('orden', { ascending: true });
 
-  // 4. Obtener solo productos visibles en el catálogo
   const { data: productos } = await adminSupabase
     .from('productos')
     .select('id, categoria_id, nombre, descripcion, precio_venta, imagen_url, orden')
@@ -51,8 +40,14 @@ export async function GET(
     .order('orden', { ascending: true });
 
   return NextResponse.json({
-    servicio_no_disponible: false,
-    negocio,
+    servicio_no_disponible: estaVencido,
+    negocio: {
+      ...negocio,
+      dias_restantes: diasRestantes,
+      estado_vencimiento: estadoVencimiento,
+      abierto_efectivo: estadoApertura.abierto,
+      proximo_horario_texto: estadoApertura.proximoHorarioTexto,
+    },
     categorias: categorias || [],
     productos: productos || [],
   });

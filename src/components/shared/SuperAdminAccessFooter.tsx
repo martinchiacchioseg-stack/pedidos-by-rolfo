@@ -23,19 +23,18 @@ export function SuperAdminAccessFooter({ negocioNombre }: SuperAdminAccessFooter
         )}
 
         <div className="flex items-center gap-2 text-xs text-slate-400 dark:text-slate-500">
-          <span>Pedidos gestionados por</span>
           {/* Logo interactivo oculto: al tocarlo abre el acceso del SuperAdmin sin ningún texto explícito */}
           <button
             type="button"
             onClick={handleHiddenAccess}
-            title="Pedidos by ROLΦ"
-            aria-label="Pedidos by ROLΦ"
-            className="inline-flex items-center gap-1 font-mono font-bold text-slate-700 dark:text-slate-300 hover:text-rose-500 dark:hover:text-rose-400 transition-colors cursor-pointer group px-1.5 py-0.5 rounded focus:outline-none"
+            title="Powered by ROLΦ"
+            aria-label="Powered by ROLΦ"
+            className="inline-flex items-center gap-1.5 font-mono font-bold text-slate-600 dark:text-slate-400 hover:text-rose-500 dark:hover:text-rose-400 transition-colors cursor-pointer group px-2 py-1 rounded focus:outline-none"
           >
             <span className="w-4 h-4 rounded bg-rose-500 text-white flex items-center justify-center text-[10px] font-sans group-hover:scale-110 transition-transform">
               R
             </span>
-            <span>ROLΦ</span>
+            <span>Powered by ROLΦ</span>
           </button>
         </div>
       </div>

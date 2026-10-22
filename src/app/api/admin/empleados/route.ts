@@ -28,13 +28,13 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { email, nombre, role, password_momentanea } = body;
+    const { email, nombre, telefono, role, password_momentanea } = body;
 
     if (!email || !nombre || !password_momentanea) {
       return NextResponse.json({ error: 'Email, nombre y contraseña provisoria son requeridos' }, { status: 400 });
     }
 
-    const rolAsignado = role === 'admin' ? 'admin' : 'vendedor';
+    const rolAsignado = role === 'admin' ? 'admin' : role === 'cadete' ? 'cadete' : 'vendedor';
 
     // 1. Crear en Supabase Auth
     const { data: authUser, error: authError } = await adminSupabase.auth.admin.createUser({
@@ -60,6 +60,7 @@ export async function POST(req: NextRequest) {
         negocio_id: profile.negocio_id,
         email: email.trim(),
         nombre: nombre.trim(),
+        telefono: telefono?.trim() || null,
         role: rolAsignado,
         must_change_password: true,
         activo: true,
@@ -68,6 +69,19 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (userError) throw new Error(userError.message);
+
+    // 3. Si es cadete, crear su ficha en public.cadetes
+    if (rolAsignado === 'cadete') {
+      await adminSupabase.from('cadetes').insert({
+        negocio_id: profile.negocio_id,
+        tipo: 'propio',
+        usuario_id: authUser.user.id,
+        nombre: nombre.trim(),
+        telefono_whatsapp: telefono?.trim() || '',
+        es_predeterminado: false,
+        activo: true,
+      });
+    }
 
     return NextResponse.json({ success: true, empleado: nuevoUsuario });
   } catch (err: unknown) {
